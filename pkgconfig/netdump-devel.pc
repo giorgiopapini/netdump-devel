@@ -1,0 +1,10 @@
+prefix=/usr
+exec_prefix=${prefix}
+includedir=${prefix}/include
+libdir=${exec_prefix}/lib
+
+Name: netdump-devel
+Description: Development files for netdump dissectors
+Version: 1.0
+Cflags: -I${includedir}/netdump
+Libs: -L${libdir} -lnetdump
