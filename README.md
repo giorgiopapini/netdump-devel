@@ -24,3 +24,45 @@ Once ```your_dissector.so``` is compiled, run netdump CLI tool and execute ```di
 Now your custom dissector is correctly loaded inside netdump and it is ready to use.
 
 ## Create your first custom dissector
+Once you installed the netdump-devel package, you can start developing your custom dissector by creating a new ```.c``` file and including the ```<netdump.h>``` library.
+```c
+#include <netdump.h>
+```
+
+The basic structure of a dissector is the following (example of a custom IPv4 dissector):
+```c
+#include <netdump.h>
+#include <netdump/ethertypes.h>
+
+void print_ipv4(const uint8_t *pkt, uint32_t len) {
+    ...
+}
+
+void visualize_ipv4(const uint8_t *pkt, uint32_t len) {
+    ...
+}
+
+protocol_info dissect_ipv4(const uint8_t *pkt, uint32_t pkt_len, output_format fmt) {
+    SHOW_OUTPUT(pkt, pkt_len, fmt, print_ipv4, visualize_ipv4);
+    return (protocol_info){ 
+        .protocol = (*((uint8_t *)(pkt + 9))),
+        .offset = ((*((uint8_t *)(pkt)) & 0x0f) * 4), 
+        .proto_table_num = IP_PROTOS
+    };
+}
+
+protocol_handler_mapping **get_custom_protocols_mapping() {
+    protocol_handler_mapping **arr = create_mappings_arr();
+    
+    add_mapping(
+        &arr,
+        create_protocol_handler_mapping(
+            create_protocol_handler(ETHERTYPE_IP, PROTOCOL_LAYER_NETWORK, dissect_ipv4, "IPv4"),
+            ETHERTYPES
+        )
+    );
+    /* You can add as many mappings as you want for a single protocol */ 
+
+    return arr;
+}
+```
