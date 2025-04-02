@@ -28,6 +28,7 @@ Once you installed the netdump-devel package, you can start developing your cust
 ```c
 #include <netdump.h>
 ```
+Any function can be named as the developer wishes, but ```protocol_handler_mapping **get_custom_protocols_mapping()``` must be named exactly this way. This is because it serves as the API that the Netdump CLI tool executes, netdump specifically looks for this function by name.
 
 The basic structure of a dissector is the following (example of a custom IPv4 dissector):
 ```c
