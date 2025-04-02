@@ -13,7 +13,7 @@ You can install netdump-devel in those ways:
 ## Compile a custom dissector
 To compile a custom dissector as a shared lib the ```libnetdump.so``` shared lib is required. This library is installed during the netdmup CLI tool installation process
 
-⚠️ ```libnetdump.so``` must be located inside ```/usr/lib``` or ```/usr/lib64``` or ```usr/local/lib``` or ```usr/local/lib64```.
+⚠️ ```libnetdump.so``` must be located inside ```/usr/lib``` or ```/usr/lib64``` or ```usr/local/lib``` or ```usr/local/lib64```. If the shared library is inside ```usr/local/...```, you may need to configure your system to look for libraries inside ```usr/local/...``` directory. Otherwise during compilation with the ```-lnetdump``` flag on, the system may not find the ```libnetdump.so``` library.
 
 To compile your custom dissectors as a shared lib ```(.so)``` follow these steps:
 
