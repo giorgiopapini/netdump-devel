@@ -232,7 +232,7 @@ protocol_info dissect_ipv4(const uint8_t *pkt, uint32_t pkt_len, output_format f
 The function returns a ```(protocol_info)``` object that represents the encapsulated protocol, including its value, the starting byte, and the protocol table ID where netdump should look for the ```dissect_encap_proto_name(...)``` function.
 (e.g. an IPv4 packet may encapsulate a TCP packet. The data needed to execute netdump recursevly on that encapsulated packet are: The protocol value contained inside the IPv4 protocol field, the encapsulated packet starting byte and the table ID in which netdump should search for dissect_tcp function).
 
-The currently supported protocol tables ID are (defined in ```<netdump/protocol.h>```) (the actual tables are defined inside netdump CLI tool and loaded at runtime):
+The currently supported protocol tables ID are defined in ```<netdump/protocol.h>``` (the actual tables are defined inside netdump CLI tool and loaded at runtime):
 ``` c
 #define DLT_PROTOS          1  /* protocols that are encapsulated in the datalink frame */ 
 #define ETHERTYPES          2  /* It maps ethertypes to protocols identified by an ethertype (e.g. ETHERTYPE_IP maps to dissect_ipv4 function) */
@@ -243,3 +243,33 @@ The currently supported protocol tables ID are (defined in ```<netdump/protocol.
 ```
 
 ⚠️ A ```dissect_proto()``` function can be mapped to multiple tables simultaneously (e.g. dissect_ipv4 is linked to ETHERTYPES table by the ETHERTYPE_IP value but also linked to NLPID_PROTOS by the NLPID_IP value)
+<br><br>
+### ```protocol_handler_mapping **get_custom_protocols_mapping()```
+This function acts as the entry point to your custom dissector, netdump will use this function to collect information, process the mapping, and load the custom dissector into memory.
+
+⚠️ *DO NOT* change the name to this function, otherwise netdump will not be able to access the shared library correctly.
+
+1) ```protocol_handler_mapping **create_mappings_arr()``` used to initialize a mappings array
+2) ```void add_mapping(protocol_handler_mapping ***arr_ptr, protocol_handler_mapping *new_mapping)``` used to add a mapping to the mappings array
+3) ```protocol_handler_mapping *create_protocol_handler_mapping(protocol_handler *handler, int proto_table_num)``` used to initialize and populate a mapping
+4) ```protocol_handler *create_protocol_handler(int proto, protocol_layer layer, protocol_info (*dissect_proto)(const uint8_t *pkt, uint32_t pkt_len, output_format fmt), const char *protocol_name)``` used to initialize and populate the custom dissector
+
+The following code provides an example of a ```protocol_handler_mapping **get_custom_protocols_mapping()``` function, using IPv4 as a reference.
+```c
+protocol_handler_mapping **get_custom_protocols_mapping() {
+    protocol_handler_mapping **arr = create_mappings_arr();
+    
+    add_mapping(
+        &arr,
+        create_protocol_handler_mapping(
+            create_protocol_handler(ETHERTYPE_IP, PROTOCOL_LAYER_NETWORK, dissect_ipv4, "IPv4"),
+            ETHERTYPES
+        )
+    );
+
+    return arr;
+}
+```
+Basically, the custom dissector developer should create the custom dissector (protocol_handler) containing all the necessary information about the protocol to be dissected. Then, he establishes a mapping between the custom dissector and the protocol table ID in which it should be placed. Finally, the mapping is added to the array of mappings and returned to netdump. (netdump will dissect a packet, identify the encapsulated protocol value, search for it in the appropriate protocol table, and if the value matches a custom dissector, it will execute the ```dissect_protocol()``` function defined by the developer).
+
+⚠️ The ```protocol_layer``` inside ```create_protocol_handler()``` is used for filtering purposes. For example, if a dissector is flagged with PROTOCOL_LAYER_NETWORK, its output will not be printed in netdump unless explicitly specified using the ```-a``` flag ("a" for "application layer").
