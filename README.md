@@ -272,4 +272,6 @@ protocol_handler_mapping **get_custom_protocols_mapping() {
 ```
 Basically, the custom dissector developer should create the custom dissector (protocol_handler) containing all the necessary information about the protocol to be dissected. Then, he establishes a mapping between the custom dissector and the protocol table ID in which it should be placed. Finally, the mapping is added to the array of mappings and returned to netdump. (netdump will dissect a packet, identify the encapsulated protocol value, search for it in the appropriate protocol table, and if the value matches a custom dissector, it will execute the ```dissect_protocol()``` function defined by the developer).
 
+The dissector developer can include libraries such as ```<netdump/ethertypes.h>``` or ```<netdump/ip_protos.h>``` to access labels related to protocols present inside the corresponding protocol table (in netdump). Other headers are available inside the netdump folder in ```/usr/include```. (e.g. ETHERTYPE_IP is defined inside ```<netdump/ethertypes.h>```, so the developer must include it).
+
 ⚠️ The ```protocol_layer``` inside ```create_protocol_handler()``` is used for filtering purposes. For example, if a dissector is flagged with PROTOCOL_LAYER_NETWORK, its output will not be printed in netdump unless explicitly specified using the ```-a``` flag ("a" for "application layer").
