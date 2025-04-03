@@ -229,8 +229,8 @@ protocol_info dissect_ipv4(const uint8_t *pkt, uint32_t pkt_len, output_format f
     };
 }
 ```
-The function returns a ```(protocol_info)``` object that represents the encapsulated protocol, including its value, the starting byte, and the protocol table where netdump should look for the ```dissect_encap_proto_name(...)``` function.
-(e.g. an IPv4 packet may encapsulate a TCP packet. The data needed to execute netdump recursevly on that encapsulated packet are: The protocol value contained inside the IPv4 protocol field, the encapsulated packet starting byte and the table in which netdump should search for dissect_tcp function).
+The function returns a ```(protocol_info)``` object that represents the encapsulated protocol, including its value, the starting byte, and the protocol table ID where netdump should look for the ```dissect_encap_proto_name(...)``` function.
+(e.g. an IPv4 packet may encapsulate a TCP packet. The data needed to execute netdump recursevly on that encapsulated packet are: The protocol value contained inside the IPv4 protocol field, the encapsulated packet starting byte and the table ID in which netdump should search for dissect_tcp function).
 
 The currently supported protocol tables ID are (defined in ```<netdump/protocol.h>```) (the actual tables are defined inside netdump CLI tool and loaded at runtime):
 ``` c
