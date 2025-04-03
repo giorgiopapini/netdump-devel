@@ -25,3 +25,4 @@ clean:
 	rm -rf $(DESTDIR)/$(INCLUDEDIR)/netdump
 	rm -rf $(DESTDIR)/$(INCLUDEDIR)/netdump.h
 	rm -rf $(DESTDIR)/$(DOCDIR)
+	rm -rf $(DESTDIR)/$(PKGCONFIGDIR)
