@@ -1,7 +1,11 @@
-INCLUDEDIR = usr/include
-DOCDIR = usr/share/doc/netdump-devel
-PKGCONFIGDIR = usr/lib/pkgconfig
+UNAME_S := $(shell uname -s)
 
+# OS-specific variables
+ifeq ($(UNAME_S),Linux)
+    INCLUDEDIR = usr/include
+	DOCDIR = usr/share/doc/netdump-devel
+	PKGCONFIGDIR = usr/lib/pkgconfig
+endif
 
 install: install_dirs copy_include copy_docs copy_pkgconfig
 
