@@ -3,14 +3,23 @@ netdump-devel package provides the header files needed to develop a custom disse
 
 ⚠️ To compile your custom dissector correctly, the netdump CLI tool must be installed in your system.
 
+## Makefile configuration
+Check the default Makefile variable configuration using ```make show-config```.
+If your system stores those files in different locations, you can run ```make install VARIABLE_NAME='/path/'``` to specify the right path.
+
+Remember that these commands might need to be run with elevated privileges.
+
 ## Installation
 netdump-devel can be installed manually using make, or installed by using a package manager (RPM on Fedora, CentOS and RHEL).
 You can install netdump-devel in those ways:
 
-1) Install the program using ```sudo make install``` after cloning the repo.
+1) Install the program using ```make install``` after cloning the repo.
 2) Install the program using a package manager.
 
-## Compile a custom dissector
+Remember that these commands might need to be run with elevated privileges.
+
+## Compile a custom dissector (Linux)
+This is specific to Linux, but the main process remains the same across all systems. Only the directories and shared library files may differ.
 To compile a custom dissector as a shared lib the ```libnetdump.so``` is required. This library is installed during the netdmup CLI tool installation process
 
 ⚠️ ```libnetdump.so``` must be located inside ```/usr/lib``` or ```/usr/lib64``` or ```usr/local/lib``` or ```usr/local/lib64```. If the shared library is inside ```usr/local/...```, you may need to configure your system to look for libraries inside ```usr/local/...``` directory. Otherwise during compilation with the ```-lnetdump``` flag on, the system may not find the ```libnetdump.so``` library.
@@ -48,8 +57,8 @@ void visualize_ipv4(const uint8_t *pkt, uint32_t len) {
 protocol_info dissect_ipv4(const uint8_t *pkt, uint32_t pkt_len, output_format fmt) {
     SHOW_OUTPUT(pkt, pkt_len, fmt, print_ipv4, visualize_ipv4);
     return (protocol_info){ 
-        .protocol = (*((uint8_t *)(pkt + 9))),
-        .offset = ((*((uint8_t *)(pkt)) & 0x0f) * 4), 
+        .protocol = (pkt[9]),
+        .offset = ((pkt[0] & 0x0f) * 4), 
         .proto_table_num = IP_PROTOS
     };
 }
@@ -82,50 +91,55 @@ The following code provides an example of a ```void print_proto_name()``` functi
 
 ⚠️ ```ntohs```, ```ntohl``` or any other standard or non standard function should be included manually by the custom dissector developer.
 ```c
-#define IP_HLEN(pkt)            (*((uint8_t *)(pkt)) & 0x0f)
-#define IP_VERSION(pkt)         (*((uint8_t *)(pkt)) >> 4)
-#define IP_TOS(pkt)             (*((uint8_t *)(pkt + 1)))
-#define IP_TOTLEN(pkt)          (*((uint16_t *)(pkt + 2)))     
-#define IP_ID(pkt)              (*((uint16_t *)(pkt + 4)))
-#define IP_OFFSET(pkt)          (*((uint16_t *)(pkt + 6)))
-#define IP_MF                   0x2000  /* 14th bit */
-#define IP_DF                   0x4000  /* 15th bit */
-#define IP_RF                   0x8000  /* 16th bit */
-#define IP_OFFSET_MASK          0x1fff  /* last 13 bits reserved for the offset field */
-#define IP_TTL(pkt)             (*((uint8_t *)(pkt + 8)))
-#define IP_PROTOCOL(pkt)        (*((uint8_t *)(pkt + 9)))
-#define IP_CHECKSUM(pkt)        (*((uint16_t *)(pkt + 10)))
-#define IP_SRC_ADDR(pkt)        (*((uint32_t *)(pkt + 12)))
-#define IP_DEST_ADDR(pkt)       (*((uint32_t *)(pkt + 16)))
+#define NP_IP_HLEN(pkt)         (pkt[0] & 0x0f)
+#define NP_IP_VERSION(pkt)      (pkt[0] >> 4)
+#define NP_IP_TOS(pkt)          (pkt[1])
+#define NP_IP_TOTLEN(pkt)       ((uint16_t)(pkt[2] << 8) | (uint16_t)pkt[3])
+#define NP_IP_ID(pkt)           ((uint16_t)(pkt[4] << 8) | (uint16_t)pkt[5])
+#define NP_IP_OFFSET(pkt)       ((uint16_t)(pkt[6] << 8) | (uint16_t)pkt[7])
+#define NP_IP_MF                0x2000  /* 14th bit */
+#define NP_IP_DF                0x4000  /* 15th bit */
+#define NP_IP_RF                0x8000  /* 16th bit */
+#define NP_IP_OFFSET_MASK       0x1fff  /* last 13 bits reserved for the offset field */
+#define NP_IP_TTL(pkt)          (pkt[8])
+#define NP_IP_PROTOCOL(pkt)     (pkt[9])
+#define NP_IP_CHECKSUM(pkt)     ((uint16_t)(pkt[10] << 8) | (uint16_t)pkt[11])
+#define NP_IP_SRC_ADDR(pkt)     ((uint32_t)(pkt[12] << 24) | (uint32_t)(pkt[13] << 16) | (uint32_t)(pkt[14] << 8) | (uint32_t)pkt[15])
+#define NP_IP_DEST_ADDR(pkt)    ((uint32_t)(pkt[16] << 24) | (uint32_t)(pkt[17] << 16) | (uint32_t)(pkt[18] << 8) | (uint32_t)pkt[19])
 
-void print_ipv4(const uint8_t *pkt, uint32_t len) {
+```c
+void print_ip_hdr(const uint8_t *pkt, size_t pkt_len) {
     char flags[9] = "";  /* max: "DF, MF, \0" */
+    (void)pkt_len;
 
     /* ===================== printing src (IP) > dest (IP) ====================== */
-    print_ipv4(ntohl(IP_SRC_ADDR(pkt)));
+    print_ipv4(NP_IP_SRC_ADDR(pkt));
     printf(" > ");
-    print_ipv4(ntohl(IP_DEST_ADDR(pkt)));
+    print_ipv4(NP_IP_DEST_ADDR(pkt));
     /* ========================================================================== */
 
     printf(
         " tos: 0x%01x, ttl: %d, id: %d, offset: %d,", 
-        IP_TOS(pkt), 
-        IP_TTL(pkt), 
-        ntohs(IP_ID(pkt)),
-        ntohs(IP_OFFSET(pkt)) & IP_OFFSET_MASK
+        NP_IP_TOS(pkt), 
+        NP_IP_TTL(pkt), 
+        NP_IP_ID(pkt),
+        NP_IP_OFFSET(pkt) & NP_IP_OFFSET_MASK
     );
 
     /* ============================= printing flags ============================= */
     printf(" flags: [");
-    if (ntohs(IP_OFFSET(pkt)) & IP_DF) strcat(flags, "DF, ");
-    if (ntohs(IP_OFFSET(pkt)) & IP_MF) strcat(flags, "MF, ");
+    if (NP_IP_OFFSET(pkt) & NP_IP_DF) strcat(flags, "DF, ");
+    if (NP_IP_OFFSET(pkt) & NP_IP_MF) strcat(flags, "MF, ");
     flags[strlen(flags) - 2] = '\0';    /* remove last ", " chars */
     printf("%s],", flags);
     /* ========================================================================== */
 
-    printf(" proto: %d", IP_PROTOCOL(pkt));
+    printf(" proto: %d", NP_IP_PROTOCOL(pkt));
+    
+    /*if (IP_HLEN(pkt) > 5) print_ip_options(pkt);*/
 }
 ```
+
 The output is (for example):
 ``` 192.168.1.20 > 239.255.255.250 tos: 0x0, ttl: 4, id: 50262, offset: 0, flags: [], proto: 17 ```
 <br><br>
@@ -136,16 +150,16 @@ To use the visualizer helper functions the developer must include the module men
 #include <netdump/visualizer.h>
 ```
 The module is composed by those functions:
-1) ```void start_printing()``` marks the beginning of the enclosure where fields are printed.
-2) ```void end_printing()``` marks the end of the enclosure where fields are printed.
-3) ```void print_field(char *label, char *content, int newline)``` used to print a specfic field in ascii art.
-4) ```void print_additional_info(char *info)``` used to print additional infos before printing the fields.
+1) ```void start_printing(void)``` marks the beginning of the enclosure where fields are printed.
+2) ```void end_printing(void)``` marks the end of the enclosure where fields are printed.
+3) ```void print_field(const char *label, const char *content, int newline)``` used to print a specfic field in ascii art.
+4) ```void print_additional_info(const char *info)``` used to print additional infos before printing the fields.
 
 ⚠️ ```ntohs```, ```ntohl``` or any other standard or non standard function should be included manually by the custom dissector developer.
 
 The following code provides an example of a ```void visualize_proto_name()``` function, using IPv4 as a reference.
 ```c
-void visualize_ipv4(const uint8_t *pkt, uint32_t len) {
+void visualize_ip_hdr(const uint8_t *pkt, size_t pkt_len) {
     char version[4];
     char ihl[4];
     char tos[5];  /* 0x00'\0' are 5 chars */
@@ -160,39 +174,40 @@ void visualize_ipv4(const uint8_t *pkt, uint32_t len) {
     char checksum[7];  /* 0x0000'\0' are 7 chars */
     char src_addr[IP_ADDR_STR_LEN];
     char dest_addr[IP_ADDR_STR_LEN];
-
-    snprintf(version, sizeof(version), "%u", IP_VERSION(pkt));
-    snprintf(ihl, sizeof(ihl), "%u", IP_HLEN(pkt));
-    snprintf(tos, sizeof(tos), "0x%02x", IP_TOS(pkt));
-    snprintf(totlen, sizeof(totlen), "%u", ntohs(IP_TOTLEN(pkt)));
-    snprintf(id, sizeof(id), "%u", ntohs(IP_ID(pkt)));
-    snprintf(rf, sizeof(rf), "%u", (ntohs(IP_OFFSET(pkt)) & IP_RF) ? 1 : 0);
-    snprintf(df, sizeof(df), "%u", (ntohs(IP_OFFSET(pkt)) & IP_DF) ? 1 : 0);
-    snprintf(mf, sizeof(mf), "%u", (ntohs(IP_OFFSET(pkt)) & IP_MF) ? 1 : 0);
-    uint_to_bin_str(offset_frag, (ntohs(IP_OFFSET(pkt)) & IP_OFFSET_MASK), sizeof(offset_frag));
-    snprintf(ttl, sizeof(ttl), "%u", IP_TTL(pkt));
-    snprintf(protocol, sizeof(protocol), "%u", IP_PROTOCOL(pkt));
+    (void)pkt_len;
     
-    snprintf(checksum, sizeof(checksum), "0x%04x", ntohs(IP_CHECKSUM(pkt)));
-    snprintf(src_addr, IP_ADDR_STR_LEN, IP_ADDR_FORMAT, IP_TO_STR(ntohl(IP_SRC_ADDR(pkt))));
-    snprintf(dest_addr, IP_ADDR_STR_LEN, IP_ADDR_FORMAT, IP_TO_STR(ntohl(IP_DEST_ADDR(pkt))));
+    snprintf(version, sizeof(version), "%u", NP_IP_VERSION(pkt));
+    snprintf(ihl, sizeof(ihl), "%u", NP_IP_HLEN(pkt));
+    snprintf(tos, sizeof(tos), "0x%02x", NP_IP_TOS(pkt));
+    snprintf(totlen, sizeof(totlen), "%u", NP_IP_TOTLEN(pkt));
+    snprintf(id, sizeof(id), "%u", NP_IP_ID(pkt));
+    snprintf(rf, sizeof(rf), "%u", (NP_IP_OFFSET(pkt) & NP_IP_RF) ? 1 : 0);
+    snprintf(df, sizeof(df), "%u", (NP_IP_OFFSET(pkt) & NP_IP_DF) ? 1 : 0);
+    snprintf(mf, sizeof(mf), "%u", (NP_IP_OFFSET(pkt) & NP_IP_MF) ? 1 : 0);
+    uint_to_bin_str(offset_frag, (NP_IP_OFFSET(pkt) & NP_IP_OFFSET_MASK), sizeof(offset_frag));
+    snprintf(ttl, sizeof(ttl), "%u", NP_IP_TTL(pkt));
+    snprintf(protocol, sizeof(protocol), "%u", NP_IP_PROTOCOL(pkt));
+    
+    snprintf(checksum, sizeof(checksum), "0x%04x", NP_IP_CHECKSUM(pkt));
+    snprintf(src_addr, IP_ADDR_STR_LEN, IP_ADDR_FORMAT, IP_TO_STR(NP_IP_SRC_ADDR(pkt)));
+    snprintf(dest_addr, IP_ADDR_STR_LEN, IP_ADDR_FORMAT, IP_TO_STR(NP_IP_DEST_ADDR(pkt)));
 
     start_printing();
     print_additional_info("Options fields not represented in ascii art");
-    print_field("Version", version, 0);
-    print_field("IHL", ihl, 0);
-    print_field("Type of Service", tos, 0);
-    print_field("Total Length", totlen, 0);
-    print_field("Identification", id, 0);
-    print_field("RF", rf, 0);
-    print_field("DF", df, 0);
-    print_field("MF", mf, 0);
-    print_field("Fragment Offset", offset_frag, 0);
-    print_field("Time to Live", ttl, 0);
-    print_field("Protocol", protocol, 0);
-    print_field("Checksum", checksum, 0);
-    print_field("Source Address", src_addr, 0);
-    print_field("Destination Address", dest_addr, 0);
+    print_field(IP_VERSION_LABEL, version, 0);
+    print_field(IP_IHL_LABEL, ihl, 0);
+    print_field(IP_TOS_LABEL, tos, 0);
+    print_field(IP_TOTLEN_LABEL, totlen, 0);
+    print_field(IP_ID_LABEL, id, 0);
+    print_field(IP_RF_LABEL, rf, 0);
+    print_field(IP_DF_LABEL, df, 0);
+    print_field(IP_MF_LABEL, mf, 0);
+    print_field(IP_OFFSET_LABEL, offset_frag, 0);
+    print_field(IP_TTL_LABEL, ttl, 0);
+    print_field(IP_PROTOCOL_LABEL, protocol, 0);
+    print_field(IP_CHECKSUM_LABEL, checksum, 0);
+    print_field(IP_SRC_ADDR_LABEL, src_addr, 0);
+    print_field(IP_DEST_ADDR_LABEL, dest_addr, 0);
     end_printing();
 }
 ```
@@ -223,8 +238,8 @@ The following code provides an example of a ```protocol_info dissect_ipv4(const 
 protocol_info dissect_ipv4(const uint8_t *pkt, uint32_t pkt_len, output_format fmt) {
     SHOW_OUTPUT(pkt, pkt_len, fmt, print_ipv4, visualize_ipv4);
     return (protocol_info){ 
-        .protocol = (*((uint8_t *)(pkt + 9))),
-        .offset = ((*((uint8_t *)(pkt)) & 0x0f) * 4), 
+        .protocol = (pkt[9]),
+        .offset = ((pkt[0] & 0x0f) * 4), 
         .proto_table_num = IP_PROTOS
     };
 }
