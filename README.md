@@ -55,6 +55,8 @@ void visualize_ipv4(const uint8_t *pkt, uint32_t len) {
 }
 
 protocol_info dissect_ipv4(const uint8_t *pkt, uint32_t pkt_len, output_format fmt) {
+    if (!pkt || pkt_len < ((pkt[0] & 0x0f) * 4)) return NO_ENCAP_PROTO;
+
     SHOW_OUTPUT(pkt, pkt_len, fmt, print_ipv4, visualize_ipv4);
     return (protocol_info){ 
         .protocol = (pkt[9]),
@@ -109,8 +111,11 @@ The following code provides an example of a ```void print_proto_name()``` functi
 
 ```c
 void print_ip_hdr(const uint8_t *pkt, size_t pkt_len) {
-    char flags[9] = "";  /* max: "DF, MF, \0" */
-    (void)pkt_len;
+    char flags[9] = { 0 };  /* max: "DF, MF, \0" */
+    int raw_offset = 0;
+    size_t offset = 0;
+
+    if (!pkt || pkt_len < ((pkt[0] & 0x0f) * 4)) return;
 
     /* ===================== printing src (IP) > dest (IP) ====================== */
     print_ipv4(NP_IP_SRC_ADDR(pkt));
@@ -128,9 +133,12 @@ void print_ip_hdr(const uint8_t *pkt, size_t pkt_len) {
 
     /* ============================= printing flags ============================= */
     printf(" flags: [");
-    if (NP_IP_OFFSET(pkt) & NP_IP_DF) strcat(flags, "DF, ");
-    if (NP_IP_OFFSET(pkt) & NP_IP_MF) strcat(flags, "MF, ");
-    flags[strlen(flags) - 2] = '\0';    /* remove last ", " chars */
+    if (NP_IP_OFFSET(pkt) & NP_IP_DF)
+        raw_offset = snprintf(flags + offset, sizeof(flags) - offset, "DF, ");
+    if (NP_IP_OFFSET(pkt) & NP_IP_MF)
+        raw_offset = snprintf(flags + offset, sizeof(flags) - offset, "MF, ");
+    if (0 <= raw_offset) offset = (size_t)raw_offset;
+    if (2 <= offset) flags[offset - 2] = '\0';
     printf("%s],", flags);
     /* ========================================================================== */
 
@@ -174,7 +182,8 @@ void visualize_ip_hdr(const uint8_t *pkt, size_t pkt_len) {
     char checksum[7];  /* 0x0000'\0' are 7 chars */
     char src_addr[IP_ADDR_STR_LEN];
     char dest_addr[IP_ADDR_STR_LEN];
-    (void)pkt_len;
+
+    if (!pkt || pkt_len < ((pkt[0] & 0x0f) * 4)) return;
     
     snprintf(version, sizeof(version), "%u", NP_IP_VERSION(pkt));
     snprintf(ihl, sizeof(ihl), "%u", NP_IP_HLEN(pkt));
@@ -213,18 +222,18 @@ void visualize_ip_hdr(const uint8_t *pkt, size_t pkt_len) {
 ```
 The output is (for example):
 ```
-(IPv4) 
+(IPv4)
 (Options fields not represented in ascii art)
-*-----------*-------*-------------------*----------------*------------------*
-|  Version  |  IHL  |  Type of Service  |  Total Length  |  Identification  |
-|     4     |   5   |       0x00        |      480       |      62838       |
-*------*------*------*-------------------*----------------*------------*----*
-|  RF  |  DF  |  MF  |  Fragment Offset  |  Time to Live  |  Protocol  |
-|  0   |  0   |  0   |   0000000000000   |       4        |     17     |
-*------------*------------------*-----------------------*-*------------*
-|  Checksum  |  Source Address  |  Destination Address  |
-|   0x0ded   |   192.168.1.7    |    239.255.255.250    |
-*------------*------------------*-----------------------*
+•───────────•───────•───────────────────•────────────────•──────────────────•
+│  Version  │  IHL  │  Type of Service  │  Total Length  │  Identification  │
+│     4     │   6   │       0xc0        │       32       │        0         │
+•──────•──────•──────•───────────────────•────────────────•────────────•────•
+│  RF  │  DF  │  MF  │  Fragment Offset  │  Time to Live  │  Protocol  │
+│  0   │  1   │  0   │   0000000000000   │       1        │     2      │
+•────────────•──────────────────•───────────────────────•─•────────────•
+│  Checksum  │  Source Address  │  Destination Address  │
+│   0x3236   │   192.168.1.63   │    239.255.255.250    │
+•────────────•──────────────────•───────────────────────•
 ```
 <br><br>
 ### ```protocol_info dissect_ipv4(const uint8_t *pkt, uint32_t pkt_len, output_format fmt)```
@@ -236,6 +245,8 @@ SHOW_OUTPUT(pkt, pkt_len, fmt, print_ipv4, visualize_ipv4);
 The following code provides an example of a ```protocol_info dissect_ipv4(const uint8_t *pkt, uint32_t pkt_len, output_format fmt)``` function, using IPv4 as a reference.
 ```c
 protocol_info dissect_ipv4(const uint8_t *pkt, uint32_t pkt_len, output_format fmt) {
+    if (!pkt || pkt_len < ((pkt[0] & 0x0f) * 4)) return NO_ENCAP_PROTO;
+    
     SHOW_OUTPUT(pkt, pkt_len, fmt, print_ipv4, visualize_ipv4);
     return (protocol_info){ 
         .protocol = (pkt[9]),
