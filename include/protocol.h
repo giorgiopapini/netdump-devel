@@ -3,19 +3,22 @@
 
 #include <stdint.h>
 
-#define DLT_PROTOS          1
-#define ETHERTYPES          2
-#define IP_PROTOS           3
-#define NET_PORTS           4
-#define NLPID_PROTOS        5
-#define PPP_PROTOS          6
+#define DLT_PROTOS_LABEL    "dlt_protos"
+#define ETHERTYPES_LABEL    "ethertypes"
+#define IP_PROTOS_LABEL     "ip_protos"
+#define NET_PORTS_LABEL     "net_ports"
+#define NLPID_PROTOS_LABEL  "nlpid_protos"
+#define PPP_PROTOS_LABEL    "ppp_protos"
 
-#define DLT_PROTOS_LABEL    "DLT_PROTOS"
-#define ETHERTYPES_LABEL    "ETHERTYPES"
-#define IP_PROTOS_LABEL     "IP_PROTOS"
-#define NET_PORTS_LABEL     "NET_PORTS"
-#define NLPID_PROTOS_LABEL  "NLPID_PROTOS"
-#define PPP_PROTOS_LABEL    "PPP_PROTOS"
+typedef enum {
+    DLT_PROTOS,
+    ETHERTYPES,
+    IP_PROTOS,
+    NET_PORTS,
+    NLPID_PROTOS,
+    PPP_PROTOS,
+    PROTO_TABLE_COUNT  /* sentinel value */
+} proto_table_id;
 
 typedef enum output_format {
     OUTPUT_FORMAT_NONE = -1,
