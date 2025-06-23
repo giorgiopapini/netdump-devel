@@ -46,21 +46,22 @@ The basic structure of a dissector is the following (example of a custom IPv4 di
 #include <netdump.h>
 #include <netdump/ethertypes.h>
 
-void print_ipv4(const uint8_t *pkt, uint32_t len) {
+void print_ipv4(const uint8_t *pkt, size_t len, size_t hdr_len) {
     ...
 }
 
-void visualize_ipv4(const uint8_t *pkt, uint32_t len) {
+void visualize_ipv4(const uint8_t *pkt, size_t len, size_t hdr_len) {
     ...
 }
 
-protocol_info dissect_ipv4(const uint8_t *pkt, uint32_t pkt_len, output_format fmt) {
-    if (!pkt || pkt_len < ((pkt[0] & 0x0f) * 4)) return NO_ENCAP_PROTO;
+protocol_info dissect_ipv4(const uint8_t *pkt, size_t pkt_len, output_format fmt) {
+    size_t hdr_len = ((pkt[0] & 0x0f) * 4)
+    if (!pkt || pkt_len < hdr_len) return NO_ENCAP_PROTO;
 
-    SHOW_OUTPUT(pkt, pkt_len, fmt, print_ipv4, visualize_ipv4);
+    SHOW_OUTPUT(pkt, pkt_len, hdr_len, fmt, print_ipv4, visualize_ipv4);
     return (protocol_info){ 
         .protocol = (pkt[9]),
-        .offset = ((pkt[0] & 0x0f) * 4), 
+        .offset = hdr_len, 
         .proto_table_num = IP_PROTOS
     };
 }
@@ -81,12 +82,12 @@ protocol_handler_mapping **get_custom_protocols_mapping() {
 }
 ```
 The code is mainly divided in 4 macro areas:
-1) ```void print_ipv4(const uint8_t *pkt, uint32_t len)```
-2) ```visualize_ipv4(const uint8_t *pkt, uint32_t len)```
-3) ```protocol_info dissect_ipv4(const uint8_t *pkt, uint32_t pkt_len, output_format fmt)```
+1) ```void print_ipv4(const uint8_t *pkt, size_t len, size_t hdr_len)```
+2) ```visualize_ipv4(const uint8_t *pkt, size_t len, size_t hdr_len)```
+3) ```protocol_info dissect_ipv4(const uint8_t *pkt, size_t pkt_len, output_format fmt)```
 4) ```protocol_handler_mapping **get_custom_protocols_mapping()```
 <br><br>
-### ```void print_ipv4(const uint8_t *pkt, uint32_t len)```
+### ```void print_ipv4(const uint8_t *pkt, size_t len, size_t hdr_len)```
 Everything the developer wants to display, and how it should be shown when the ```-output std``` mode is selected, should be defined in this function.
 The logic contained inside this function can range from simple, constant printf statements to more complex output handling.
 The following code provides an example of a ```void print_proto_name()``` function, using IPv4 as a reference.
@@ -110,12 +111,12 @@ The following code provides an example of a ```void print_proto_name()``` functi
 #define NP_IP_DEST_ADDR(pkt)    ((uint32_t)(pkt[16] << 24) | (uint32_t)(pkt[17] << 16) | (uint32_t)(pkt[18] << 8) | (uint32_t)pkt[19])
 
 ```c
-void print_ip_hdr(const uint8_t *pkt, size_t pkt_len) {
+void print_ip_hdr(const uint8_t *pkt, size_t pkt_len, size_t hdr_len) {
     char flags[9] = { 0 };  /* max: "DF, MF, \0" */
     int raw_offset = 0;
     size_t offset = 0;
 
-    if (!pkt || pkt_len < ((pkt[0] & 0x0f) * 4)) return;
+    if (!pkt || pkt_len < hdr_len) return;
 
     /* ===================== printing src (IP) > dest (IP) ====================== */
     print_ipv4(NP_IP_SRC_ADDR(pkt));
@@ -151,7 +152,7 @@ void print_ip_hdr(const uint8_t *pkt, size_t pkt_len) {
 The output is (for example):
 ``` 192.168.1.20 > 239.255.255.250 tos: 0x0, ttl: 4, id: 50262, offset: 0, flags: [], proto: 17 ```
 <br><br>
-### ```void visualize_ipv4(const uint8_t *pkt, uint32_t len)```
+### ```void visualize_ipv4(const uint8_t *pkt, size_t len, size_t hdr_len)```
 Everything the developer wants to display, and how it should be shown when the ```-output art``` mode is selected, should be defined in this function.
 To use the visualizer helper functions the developer must include the module mentioned below.
 ```c
@@ -167,7 +168,7 @@ The module is composed by those functions:
 
 The following code provides an example of a ```void visualize_proto_name()``` function, using IPv4 as a reference.
 ```c
-void visualize_ip_hdr(const uint8_t *pkt, size_t pkt_len) {
+void visualize_ip_hdr(const uint8_t *pkt, size_t pkt_len, size_t hdr_len) {
     char version[4];
     char ihl[4];
     char tos[5];  /* 0x00'\0' are 5 chars */
@@ -183,7 +184,7 @@ void visualize_ip_hdr(const uint8_t *pkt, size_t pkt_len) {
     char src_addr[IP_ADDR_STR_LEN];
     char dest_addr[IP_ADDR_STR_LEN];
 
-    if (!pkt || pkt_len < ((pkt[0] & 0x0f) * 4)) return;
+    if (!pkt || pkt_len < hdr_len) return;
     
     snprintf(version, sizeof(version), "%u", NP_IP_VERSION(pkt));
     snprintf(ihl, sizeof(ihl), "%u", NP_IP_HLEN(pkt));
@@ -236,21 +237,22 @@ The output is (for example):
 •────────────•──────────────────•───────────────────────•
 ```
 <br><br>
-### ```protocol_info dissect_ipv4(const uint8_t *pkt, uint32_t pkt_len, output_format fmt)```
+### ```protocol_info dissect_ipv4(const uint8_t *pkt, size_t pkt_len, output_format fmt)```
 This function will be called by netdump when it determines that a specific byte string must be dissected using the custom dissector (based on the mapping process explained in the next section).
 The macro ```SHOW_OUTPUT(...)``` is used to execute the appropriate formatting function, previously defined by the dissector developer, based on the output format.
 ```c
-SHOW_OUTPUT(pkt, pkt_len, fmt, print_ipv4, visualize_ipv4);
+SHOW_OUTPUT(pkt, pkt_len, hdr_len, fmt, print_ipv4, visualize_ipv4);
 ```
-The following code provides an example of a ```protocol_info dissect_ipv4(const uint8_t *pkt, uint32_t pkt_len, output_format fmt)``` function, using IPv4 as a reference.
+The following code provides an example of a ```protocol_info dissect_ipv4(const uint8_t *pkt, size_t pkt_len, output_format fmt)``` function, using IPv4 as a reference.
 ```c
-protocol_info dissect_ipv4(const uint8_t *pkt, uint32_t pkt_len, output_format fmt) {
-    if (!pkt || pkt_len < ((pkt[0] & 0x0f) * 4)) return NO_ENCAP_PROTO;
+protocol_info dissect_ipv4(const uint8_t *pkt, size_t pkt_len, output_format fmt) {
+    size_t hdr_len = ((pkt[0] & 0x0f) * 4);
+    if (!pkt || pkt_len < hdr_len) return NO_ENCAP_PROTO;
     
-    SHOW_OUTPUT(pkt, pkt_len, fmt, print_ipv4, visualize_ipv4);
+    SHOW_OUTPUT(pkt, pkt_len, hdr_len, fmt, print_ipv4, visualize_ipv4);
     return (protocol_info){ 
         .protocol = (pkt[9]),
-        .offset = ((pkt[0] & 0x0f) * 4), 
+        .offset = hdr_len, 
         .proto_table_num = IP_PROTOS
     };
 }
@@ -278,7 +280,7 @@ This function acts as the entry point to your custom dissector, netdump will use
 1) ```protocol_handler_mapping **create_mappings_arr()``` used to initialize a mappings array
 2) ```void add_mapping(protocol_handler_mapping ***arr_ptr, protocol_handler_mapping *new_mapping)``` used to add a mapping to the mappings array
 3) ```protocol_handler_mapping *create_protocol_handler_mapping(protocol_handler *handler, int proto_table_num)``` used to initialize and populate a mapping
-4) ```protocol_handler *create_protocol_handler(int proto, protocol_layer layer, protocol_info (*dissect_proto)(const uint8_t *pkt, uint32_t pkt_len, output_format fmt), const char *protocol_name)``` used to initialize and populate the custom dissector
+4) ```protocol_handler *create_protocol_handler(int proto, protocol_layer layer, protocol_info (*dissect_proto)(const uint8_t *pkt, size_t pkt_len, output_format fmt), const char *protocol_name)``` used to initialize and populate the custom dissector
 
 The following code provides an example of a ```protocol_handler_mapping **get_custom_protocols_mapping()``` function, using IPv4 as a reference.
 ```c

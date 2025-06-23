@@ -54,21 +54,21 @@ typedef struct protocol_handler_mapping {
 } protocol_handler_mapping;
 
 #define NO_ENCAP_PROTO			(protocol_info){ .protocol = -1, .offset = 0, .proto_table_num = -1 };
-#define SHOW_OUTPUT(pkt, len, fmt, print_func, visualize_func) \
+#define SHOW_OUTPUT(pkt, len, hdr_len, fmt, print_func, visualize_func) \
 		do { \
-			void (*output_func)(const uint8_t *, uint32_t) = select_output_func(fmt, print_func, visualize_func); \
-    		if (NULL != output_func && len > 0) output_func(pkt, len); \
+			output_func_t output_func = select_output_func(fmt, print_func, visualize_func); \
+    		if (NULL != output_func && len > 0) output_func(pkt, len, hdr_len); \
 		} while(0)
 
-void *select_output_func(
+output_func_t select_output_func(
     output_format fmt,
-    void (*print_func)(const uint8_t *, uint32_t), 
-    void (*visualize_func)(const uint8_t *, uint32_t)
+    void (*print_func)(const uint8_t *, size_t, size_t), 
+    void (*visualize_func)(const uint8_t *, size_t, size_t)
 );
 protocol_handler *create_protocol_handler(
 	int proto, 
 	protocol_layer layer, 
-	protocol_info (*dissect_proto)(const uint8_t *pkt, uint32_t pkt_len, output_format fmt),
+	protocol_info (*dissect_proto)(const uint8_t *pkt, size_t pkt_len, output_format fmt),
 	const char *protocol_name
 );
 protocol_handler_mapping *create_protocol_handler_mapping(
