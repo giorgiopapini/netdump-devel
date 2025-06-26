@@ -54,15 +54,14 @@ void visualize_ipv4(const uint8_t *pkt, size_t len, size_t hdr_len) {
     ...
 }
 
-protocol_info dissect_ipv4(const uint8_t *pkt, size_t pkt_len, output_format fmt) {
-    size_t hdr_len = ((pkt[0] & 0x0f) * 4)
-    if (!pkt || pkt_len < hdr_len) return NO_ENCAP_PROTO;
-
-    SHOW_OUTPUT(pkt, pkt_len, hdr_len, fmt, print_ipv4, visualize_ipv4);
-    return (protocol_info){ 
-        .protocol = (pkt[9]),
-        .offset = hdr_len, 
-        .proto_table_num = IP_PROTOS
+protocol_info dissect_ipv4(const uint8_t *pkt, size_t pkt_len) {
+    if (!pkt || pkt_len < ((pkt[0] & 0x0f) * 4)) return NO_PROTO_INFO;
+    return (protocol_info){
+        .print_protocol_func = print_ipv4,
+        .visualize_protocol_func = visualize_ipv4,
+        .hdr_len = ((pkt[0] & 0x0f) * 4),
+        .encap_protocol = (pkt[9]),
+        .encap_proto_table_num = IP_PROTOS
     };
 }
 
@@ -84,7 +83,7 @@ protocol_handler_mapping **get_custom_protocols_mapping() {
 The code is mainly divided in 4 macro areas:
 1) ```void print_ipv4(const uint8_t *pkt, size_t len, size_t hdr_len)```
 2) ```visualize_ipv4(const uint8_t *pkt, size_t len, size_t hdr_len)```
-3) ```protocol_info dissect_ipv4(const uint8_t *pkt, size_t pkt_len, output_format fmt)```
+3) ```protocol_info dissect_ipv4(const uint8_t *pkt, size_t pkt_len)```
 4) ```protocol_handler_mapping **get_custom_protocols_mapping()```
 <br><br>
 ### ```void print_ipv4(const uint8_t *pkt, size_t len, size_t hdr_len)```
@@ -239,25 +238,20 @@ The output is (for example):
 <br><br>
 ### ```protocol_info dissect_ipv4(const uint8_t *pkt, size_t pkt_len, output_format fmt)```
 This function will be called by netdump when it determines that a specific byte string must be dissected using the custom dissector (based on the mapping process explained in the next section).
-The macro ```SHOW_OUTPUT(...)``` is used to execute the appropriate formatting function, previously defined by the dissector developer, based on the output format.
+The following code provides an example of a ```protocol_info dissect_ipv4(const uint8_t *pkt, size_t pkt_len)``` function, using IPv4 as a reference.
 ```c
-SHOW_OUTPUT(pkt, pkt_len, hdr_len, fmt, print_ipv4, visualize_ipv4);
-```
-The following code provides an example of a ```protocol_info dissect_ipv4(const uint8_t *pkt, size_t pkt_len, output_format fmt)``` function, using IPv4 as a reference.
-```c
-protocol_info dissect_ipv4(const uint8_t *pkt, size_t pkt_len, output_format fmt) {
-    size_t hdr_len = ((pkt[0] & 0x0f) * 4);
-    if (!pkt || pkt_len < hdr_len) return NO_ENCAP_PROTO;
-    
-    SHOW_OUTPUT(pkt, pkt_len, hdr_len, fmt, print_ipv4, visualize_ipv4);
-    return (protocol_info){ 
-        .protocol = (pkt[9]),
-        .offset = hdr_len, 
-        .proto_table_num = IP_PROTOS
+protocol_info dissect_ipv4(const uint8_t *pkt, size_t pkt_len) {
+    if (!pkt || pkt_len < ((pkt[0] & 0x0f) * 4)) return NO_PROTO_INFO;
+    return (protocol_info){
+        .print_protocol_func = print_ipv4,
+        .visualize_protocol_func = visualize_ipv4,
+        .hdr_len = ((pkt[0] & 0x0f) * 4),
+        .encap_protocol = (pkt[9]),
+        .encap_proto_table_num = IP_PROTOS
     };
 }
 ```
-The function returns a ```(protocol_info)``` object that represents the encapsulated protocol, including its value, the starting byte, and the protocol table ID where netdump should look for the ```dissect_encap_proto_name(...)``` function.
+The function returns a ```(protocol_info)``` object representing the current protocol. It includes function pointers for printing and visualizing the protocol, along with details about the encapsulated protocol—such as its identifier, the starting byte and the protocol table ID where netdump should look for the ```dissect_encap_proto_name(...)``` function.
 (e.g. an IPv4 packet may encapsulate a TCP packet. The data needed to execute netdump recursevly on that encapsulated packet are: The protocol value contained inside the IPv4 protocol field, the encapsulated packet starting byte and the table ID in which netdump should search for dissect_tcp function).
 
 The currently supported protocol tables ID are defined in ```<netdump/protocol.h>``` (the actual tables are defined inside netdump CLI tool and loaded at runtime):
@@ -280,7 +274,7 @@ This function acts as the entry point to your custom dissector, netdump will use
 1) ```protocol_handler_mapping **create_mappings_arr()``` used to initialize a mappings array
 2) ```void add_mapping(protocol_handler_mapping ***arr_ptr, protocol_handler_mapping *new_mapping)``` used to add a mapping to the mappings array
 3) ```protocol_handler_mapping *create_protocol_handler_mapping(protocol_handler *handler, int proto_table_num)``` used to initialize and populate a mapping
-4) ```protocol_handler *create_protocol_handler(int proto, protocol_layer layer, protocol_info (*dissect_proto)(const uint8_t *pkt, size_t pkt_len, output_format fmt), const char *protocol_name)``` used to initialize and populate the custom dissector
+4) ```protocol_handler *create_protocol_handler(int proto, protocol_layer layer, protocol_info (*dissect_proto)(const uint8_t *pkt, size_t pkt_len), const char *protocol_name)``` used to initialize and populate the custom dissector
 
 The following code provides an example of a ```protocol_handler_mapping **get_custom_protocols_mapping()``` function, using IPv4 as a reference.
 ```c
