@@ -236,7 +236,7 @@ The output is (for example):
 •────────────•──────────────────•───────────────────────•
 ```
 <br><br>
-### ```protocol_info dissect_ipv4(const uint8_t *pkt, size_t pkt_len, output_format fmt)```
+### ```protocol_info dissect_ipv4(const uint8_t *pkt, size_t pkt_len)```
 This function will be called by netdump when it determines that a specific byte string must be dissected using the custom dissector (based on the mapping process explained in the next section).
 The following code provides an example of a ```protocol_info dissect_ipv4(const uint8_t *pkt, size_t pkt_len)``` function, using IPv4 as a reference.
 ```c
